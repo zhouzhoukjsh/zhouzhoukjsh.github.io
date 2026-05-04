@@ -1,0 +1,136 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Microsoft YaHei", sans-serif;
+    background-color: white;
+    color: black;
+}
+
+/* 顶部导航栏：flex 布局 */
+.header {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 2px solid black;
+    height: 48px;
+}
+
+/* 左侧组：logo + 导航 + 舟舟系统（全部左对齐） */
+.left-group {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.logo-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: black;
+}
+
+.logo-img {
+    width: 32px;
+    height: 32px;
+    margin-right: 8px;
+}
+
+.site-title {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.nav-menu {
+    display: flex;
+    gap: 20px;
+    margin-left: 20px;
+}
+
+.nav-menu a {
+    text-decoration: none;
+    color: black;
+    font-size: 16px;
+    padding: 6px 0;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.3s;
+}
+
+.nav-menu a:hover {
+    color: #1e90ff;
+}
+
+.nav-menu a.active {
+    color: #1e90ff;
+    border-bottom: 2px solid #1e90ff;
+}
+
+/* 舟舟系统 */
+.system-link {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: #1e90ff;
+    font-size: 16px;
+    margin-left: 24px;
+}
+
+.system-img {
+    width: 32px;
+    height: 32px;
+    margin-right: 6px;
+}
+
+/* 搜索图标：使用 margin-left: auto 推到最右边 */
+.search-icon {
+    margin-left: auto; /* 关键：自动占据剩余空间，推向右侧 */
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+/* 搜索框 */
+.search-box {
+    position: absolute;
+    top: 50px;
+    right: 16px;
+    width: 220px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    display: none;
+    z-index: 10;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 4px 6px;
+    border: none;
+    outline: none;
+    font-size: 14px;
+}
+
+/* 主体 */
+.main-content {
+    text-align: center;
+    padding: 24px 20px 60px;
+}
+
+.section-title {
+    font-size: 28px;
+    margin-bottom: 12px;
+}
+
+.section-subtitle {
+    font-size: 16px;
+    color: #666;
+}
