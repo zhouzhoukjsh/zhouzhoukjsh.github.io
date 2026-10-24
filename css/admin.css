@@ -1,0 +1,213 @@
+/* ========== 后台样式 ========== */
+
+.admin-card {
+  padding: 24px 0 32px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-card:last-child {
+  border-bottom: none;
+}
+
+.admin-hint {
+  font-size: 13px;
+  color: var(--color-text-light);
+  margin-bottom: 16px;
+  line-height: 1.7;
+}
+
+.admin-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.admin-status {
+  font-size: 13px;
+  color: var(--color-text-light);
+}
+
+/* 表单 */
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--color-text);
+}
+
+.field input[type="text"],
+.field input[type="password"],
+.field input[type="date"],
+.field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--color-text);
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field input:focus,
+.field textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(58, 169, 224, 0.12);
+}
+
+.field textarea {
+  resize: vertical;
+  line-height: 1.6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.field input[type="file"] {
+  font-size: 14px;
+  padding: 6px 0;
+}
+
+.field-row {
+  display: flex;
+  gap: 16px;
+}
+
+.field-row .field {
+  flex: 1;
+}
+
+/* 按钮 */
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-family: inherit;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text-light);
+  padding: 6px 12px;
+}
+
+.btn-ghost:hover {
+  color: var(--color-primary);
+}
+
+.btn-danger {
+  background: #fdecec;
+  color: #d64545;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #f8d7d7;
+}
+
+.btn-sm {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+/* 提示信息 */
+.admin-msg {
+  font-size: 13px;
+  min-height: 20px;
+  margin-top: 10px;
+  color: var(--color-text-light);
+  word-break: break-all;
+}
+
+.admin-msg.ok {
+  color: #22915a;
+}
+
+.admin-msg.err {
+  color: #d64545;
+}
+
+/* 已有列表 */
+.sub-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 28px 0 10px;
+  color: var(--color-text);
+}
+
+.admin-list {
+  border-top: 1px solid var(--color-border);
+}
+
+.admin-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-item-info {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.admin-item-title {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-item-date {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.admin-empty {
+  padding: 16px 4px;
+  font-size: 14px;
+  color: var(--color-text-light);
+  border-bottom: 1px solid var(--color-border);
+}
+
+@media (max-width: 768px) {
+  .field-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .admin-item-info {
+    flex-direction: column;
+    gap: 2px;
+  }
+}

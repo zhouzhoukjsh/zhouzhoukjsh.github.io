@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>后台管理 - 舟舟博客</title>
+  <link rel="icon" href="zz.ico" type="image/x-icon">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">
+        <img src="zz.jpg" alt="舟舟博客" class="logo-img">
+        <span class="logo-text">舟舟博客 · 后台</span>
+      </a>
+      <nav class="nav">
+        <ul class="nav-list">
+          <li><a href="index.html" class="nav-link">返回网站</a></li>
+        </ul>
+      </nav>
+      <button class="menu-btn" id="menuBtn" aria-label="菜单">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="container">
+
+      <!-- 登录 / 设置 -->
+      <section class="admin-card" id="loginPanel">
+        <h2 class="block-title">连接 GitHub</h2>
+        <p class="admin-hint">
+          填入你的 GitHub Token 后即可在此页发布内容。Token 只保存在当前浏览器本地，不会上传到任何第三方。
+        </p>
+        <div class="field">
+          <label for="tokenInput">GitHub Token</label>
+          <input type="password" id="tokenInput" placeholder="github_pat_... 或 ghp_...">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="repoInput">仓库（用户名/仓库名）</label>
+            <input type="text" id="repoInput" value="zhouzhoukjsh/zhouzhoukjsh.github.io">
+          </div>
+          <div class="field">
+            <label for="branchInput">分支</label>
+            <input type="text" id="branchInput" value="main">
+          </div>
+        </div>
+        <button class="btn btn-primary" id="connectBtn">连接</button>
+        <p class="admin-msg" id="loginMsg"></p>
+      </section>
+
+      <!-- 管理区 -->
+      <div id="adminArea" hidden>
+
+        <div class="admin-bar">
+          <span class="admin-status" id="statusText">已连接</span>
+          <button class="btn btn-ghost" id="logoutBtn">退出</button>
+        </div>
+
+        <!-- 视频教程 -->
+        <section class="admin-card">
+          <h2 class="block-title">添加视频教程</h2>
+          <div class="field">
+            <label for="videoTitle">标题</label>
+            <input type="text" id="videoTitle" placeholder="例如：用 Python 做一个自动下载器">
+          </div>
+          <div class="field">
+            <label for="videoIframe">B 站嵌入代码</label>
+            <textarea id="videoIframe" rows="5" placeholder="在 B 站视频页点「分享 → 嵌入代码」，把整段 &lt;iframe ...&gt;&lt;/iframe&gt; 粘到这里"></textarea>
+          </div>
+          <div class="field">
+            <label for="videoDate">日期（留空用今天）</label>
+            <input type="date" id="videoDate">
+          </div>
+          <button class="btn btn-primary" id="addVideoBtn">发布视频教程</button>
+          <p class="admin-msg" id="videoMsg"></p>
+
+          <h3 class="sub-title">已有视频教程</h3>
+          <ul class="admin-list" id="videoList"></ul>
+        </section>
+
+        <!-- 图文教程 -->
+        <section class="admin-card">
+          <h2 class="block-title">添加图文教程</h2>
+          <div class="field">
+            <label for="articleTitle">标题（留空则用 Word 文件名）</label>
+            <input type="text" id="articleTitle" placeholder="例如：Windows 重装系统全流程">
+          </div>
+          <div class="field">
+            <label for="articleFile">Word 文档（.docx）</label>
+            <input type="file" id="articleFile" accept=".docx">
+            <span class="admin-hint">只支持 .docx。老的 .doc 请先在 Word 里另存为 .docx。</span>
+          </div>
+          <div class="field">
+            <label for="articleDate">日期（留空用今天）</label>
+            <input type="date" id="articleDate">
+          </div>
+          <button class="btn btn-primary" id="addArticleBtn">发布图文教程</button>
+          <p class="admin-msg" id="articleMsg"></p>
+
+          <h3 class="sub-title">已有图文教程</h3>
+          <ul class="admin-list" id="articleList"></ul>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; <span id="year"></span> 舟舟博客</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

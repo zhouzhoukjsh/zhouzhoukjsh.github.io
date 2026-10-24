@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频教程 - 舟舟博客</title>
+  <link rel="icon" href="zz.ico" type="image/x-icon">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- 顶部导航 -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">
+        <img src="zz.jpg" alt="舟舟博客" class="logo-img">
+        <span class="logo-text">舟舟博客</span>
+      </a>
+
+      <nav class="nav">
+        <ul class="nav-list">
+          <li><a href="index.html" class="nav-link">主页</a></li>
+          <li><a href="video.html" class="nav-link active">视频教程</a></li>
+          <li><a href="article.html" class="nav-link">图文教程</a></li>
+          <li><a href="contact.html" class="nav-link">联系我</a></li>
+        </ul>
+      </nav>
+
+      <!-- 移动端菜单按钮 -->
+      <button class="menu-btn" id="menuBtn" aria-label="菜单">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 主体内容 -->
+  <main class="main">
+    <div class="container">
+      <!-- 页面内容区 -->
+      <section class="content" id="detail"></section>
+    </div>
+    <div class="container">
+      <ul class="post-list" id="listBox"></ul>
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; <span id="year"></span> 舟舟博客</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/render.js"></script>
+  <script>
+    if (idOf('id')) {
+      document.getElementById('listBox').remove();
+      renderDetail('videos');
+    } else {
+      document.getElementById('detail').remove();
+      loadJSON(DATA.videos).then(list => {
+        fillList(document.getElementById('listBox'), byDateDesc(list),
+          it => 'video.html?id=' + encodeURIComponent(it.id));
+      });
+    }
+  </script>
+</body>
+</html>

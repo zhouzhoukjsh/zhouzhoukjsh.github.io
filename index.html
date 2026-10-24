@@ -1,51 +1,81 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>舟舟博客</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="zz.ico" type="image/x-icon">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>舟舟博客</title>
+  <link rel="icon" href="zz.ico" type="image/x-icon">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<div class="header">
-    <!-- 左侧所有内容：必须用一个 flex 容器包裹，禁止换行 -->
-    <div class="left-group">
-        <!-- Logo + 标题：必须内联为一个整体 -->
-        <a href="index.html" class="logo-link">
-            <img src="zz.jpg" alt="舟舟博客Logo" class="logo-img">
-            <span class="site-title">舟舟博客</span>
-        </a>
+  <!-- 顶部导航 -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">
+        <img src="zz.jpg" alt="舟舟博客" class="logo-img">
+        <span class="logo-text">舟舟博客</span>
+      </a>
 
-        <!-- 导航菜单 -->
-        <div class="nav-menu">
-            <a href="index.html" class="active">主页</a>
-            <a href="#">视频教程</a>
-            <a href="#">图文教程</a>
-            <a href="#">联系我</a>
+      <nav class="nav">
+        <ul class="nav-list">
+          <li><a href="index.html" class="nav-link active">主页</a></li>
+          <li><a href="video.html" class="nav-link">视频教程</a></li>
+          <li><a href="article.html" class="nav-link">图文教程</a></li>
+          <li><a href="contact.html" class="nav-link">联系我</a></li>
+        </ul>
+      </nav>
+
+      <!-- 移动端菜单按钮 -->
+      <button class="menu-btn" id="menuBtn" aria-label="菜单">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 主体内容 -->
+  <main class="main">
+    <div class="container">
+      <!-- 页面内容区 -->
+        <!-- 最新视频教程 -->
+        <div class="home-block">
+          <h2 class="block-title">最新视频教程</h2>
+          <ul class="post-list" id="homeVideoList"></ul>
         </div>
 
-        <!-- 舟舟系统 -->
-        <a href="#" class="system-link">
-            <img src="zzxt.png" alt="舟舟系统" class="system-img">
-            <span>舟舟系统</span>
-        </a>
+        <!-- 最新图文教程 -->
+        <div class="home-block">
+          <h2 class="block-title">最新图文教程</h2>
+          <ul class="post-list" id="homeArticleList"></ul>
+        </div>
+
+      </section>
     </div>
+  </main>
 
-    <!-- 搜索图标：自动推到最右 -->
-    <div class="search-icon" id="searchIcon">🔍</div>
-</div>
+  <!-- 页脚 -->
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; <span id="year"></span> 舟舟博客</p>
+    </div>
+  </footer>
 
-<!-- 搜索框 -->
-<div class="search-box" id="searchBox">
-    <input type="text" placeholder="搜索..." id="searchInput">
-</div>
-
-<div class="main-content">
-    <h1 class="section-title">最新教程</h1>
-    <p class="section-subtitle">暂无</p>
-</div>
-
-<script src="script.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/render.js"></script>
+  <script>
+    // 主页：各显示最新 3 条
+    loadJSON(DATA.videos).then(list => {
+      fillList(document.getElementById('homeVideoList'),
+        byDateDesc(list).slice(0, 3),
+        it => 'video.html?id=' + encodeURIComponent(it.id));
+    });
+    loadJSON(DATA.articles).then(list => {
+      fillList(document.getElementById('homeArticleList'),
+        byDateDesc(list).slice(0, 3),
+        it => 'article.html?id=' + encodeURIComponent(it.id));
+    });
+  </script>
 </body>
 </html>
