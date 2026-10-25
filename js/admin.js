@@ -7,8 +7,6 @@ const state = {
   owner: '',
   repo: '',
   branch: 'main',
-  videosSha: null,
-  articlesSha: null,
   videos: [],
   articles: []
 };
@@ -47,6 +45,32 @@ function apiUrl(path) {
   return 'https://api.github.com/repos/' + state.owner + '/' + state.repo + '/contents/' + path;
 }
 
+function gitUrl(path) {
+  return 'https://api.github.com/repos/' + state.owner + '/' + state.repo + path;
+}
+
+async function ghRequest(url, method, body) {
+  const opt = {
+    method: method,
+    headers: {
+      Authorization: 'Bearer ' + state.token,
+      Accept: 'application/vnd.github+json'
+    }
+  };
+  if (body) {
+    opt.headers['Content-Type'] = 'application/json';
+    opt.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, opt);
+  if (!res.ok) {
+    const t = await res.text();
+    const err = new Error('HTTP ' + res.status + ' ' + t.slice(0, 300));
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
+}
+
 async function ghGet(path) {
   const res = await fetch(apiUrl(path) + '?ref=' + encodeURIComponent(state.branch), {
     headers: {
@@ -62,55 +86,81 @@ async function ghGet(path) {
   return res.json();
 }
 
-async function ghPut(path, contentB64, message, sha) {
-  const body = {
-    message: message,
-    content: contentB64,
-    branch: state.branch
-  };
-  if (sha) body.sha = sha;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-  const res = await fetch(apiUrl(path), {
-    method: 'PUT',
-    headers: {
-      Authorization: 'Bearer ' + state.token,
-      Accept: 'application/vnd.github+json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error('提交 ' + path + ' 失败：HTTP ' + res.status + ' ' + t.slice(0, 300));
+/**
+ * 一次提交写入多个文件（Git Data API）。
+ * changes: [{ path, content: base64 }] 新增/覆盖
+ *          [{ path, remove: true }]    删除
+ * 整篇内容只产生 1 个 commit；失败不会留下半截文件。
+ */
+async function commitMany(changes, message) {
+  if (!changes.length) return null;
+
+  // 1. 先把所有文件内容上传为 blob（与提交解耦，重试时可复用）
+  const blobShas = await Promise.all(changes.map(async c => {
+    if (c.remove) return null;
+    const blob = await ghRequest(gitUrl('/git/blobs'), 'POST', {
+      content: c.content,
+      encoding: 'base64'
+    });
+    return blob.sha;
+  }));
+
+  const entries = changes.map((c, i) => ({
+    path: c.path,
+    mode: '100644',
+    type: 'blob',
+    sha: c.remove ? null : blobShas[i]
+  }));
+
+  // 2. 基于最新 HEAD 建 tree → commit → 移动分支指针；冲突则重试
+  let lastErr = null;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const ref = await ghRequest(gitUrl('/git/ref/heads/' + encodeURIComponent(state.branch)), 'GET');
+      const parentSha = ref.object.sha;
+
+      const parent = await ghRequest(gitUrl('/git/commits/' + parentSha), 'GET');
+
+      const tree = await ghRequest(gitUrl('/git/trees'), 'POST', {
+        base_tree: parent.tree.sha,
+        tree: entries
+      });
+
+      const commit = await ghRequest(gitUrl('/git/commits'), 'POST', {
+        message: message,
+        tree: tree.sha,
+        parents: [parentSha]
+      });
+
+      await ghRequest(gitUrl('/git/refs/heads/' + encodeURIComponent(state.branch)), 'PATCH', {
+        sha: commit.sha,
+        force: false
+      });
+
+      return commit;
+    } catch (e) {
+      lastErr = e;
+      if (attempt === 3) break;
+      await sleep(400 * (attempt + 1));
+    }
   }
-  return res.json();
+  throw new Error('提交失败：' + (lastErr ? lastErr.message : '未知错误'));
 }
 
-async function ghDelete(path, message, sha) {
-  const res = await fetch(apiUrl(path), {
-    method: 'DELETE',
-    headers: {
-      Authorization: 'Bearer ' + state.token,
-      Accept: 'application/vnd.github+json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ message: message, sha: sha, branch: state.branch })
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error('删除 ' + path + ' 失败：HTTP ' + res.status + ' ' + t.slice(0, 300));
-  }
-  return res.json();
+// 构造索引内容（只保留轻量字段）
+function buildIndexJSON(items) {
+  const index = items.map(it => ({ id: it.id, title: it.title, date: it.date }));
+  return JSON.stringify({ items: index }, null, 2);
 }
 
 // ---------- 数据读写 ----------
 async function loadData() {
   const v = await ghGet('data/videos.json');
-  state.videosSha = v ? v.sha : null;
   state.videos = v ? (JSON.parse(b64Decode(v.content)).items || []) : [];
 
   const a = await ghGet('data/articles.json');
-  state.articlesSha = a ? a.sha : null;
   state.articles = a ? (JSON.parse(b64Decode(a.content)).items || []) : [];
 
   await migrateLegacy();
@@ -118,12 +168,14 @@ async function loadData() {
 
 // 早期版本把正文（含 base64 图片）直接塞在索引里。
 // 这里把它拆成：图片 → docs/images/，正文 → data/posts/<id>.json，索引只留标题日期。
+// 整个过程合并成一次提交。
 async function migrateLegacy() {
   const legacy = state.articles.filter(it => it.content || it.iframe);
   if (!legacy.length) return;
 
   setMsg($('loginMsg'), '正在整理历史数据，共 ' + legacy.length + ' 篇…');
 
+  const changes = [];
   for (const it of legacy) {
     const exists = await ghGet('data/posts/' + it.id + '.json');
     if (exists) continue;
@@ -133,61 +185,45 @@ async function migrateLegacy() {
     const imgPaths = [];
     for (let i = 0; i < images.length; i++) {
       const p = 'docs/images/' + it.id + '_' + (i + 1) + '.' + images[i].ext;
-      await ghPut(p, images[i].b64, '整理历史图片：' + it.title, null);
+      changes.push({ path: p, content: images[i].b64 });
       imgPaths.push(p);
       content = content.split(images[i].full).join(p);
     }
 
-    await savePost({
-      id: it.id,
-      title: it.title,
-      date: it.date,
-      docPath: it.docPath || '',
-      images: imgPaths,
-      content: content
+    changes.push({
+      path: 'data/posts/' + it.id + '.json',
+      content: b64Encode(JSON.stringify({
+        id: it.id,
+        title: it.title,
+        date: it.date,
+        docPath: it.docPath || '',
+        images: imgPaths,
+        content: content
+      }, null, 2))
     });
 
-    // 迁移完把内存里的老字段清掉，避免再次迁移
     delete it.content;
     delete it.iframe;
     delete it.docPath;
     delete it.images;
   }
 
-  await saveArticles();
+  if (!changes.length) {
+    setMsg($('loginMsg'), '');
+    return;
+  }
+
+  changes.push({
+    path: 'data/articles.json',
+    content: b64Encode(buildIndexJSON(state.articles))
+  });
+
+  await commitMany(changes, '整理历史图文数据（拆分为索引 + 单篇）');
   setMsg($('loginMsg'), '历史数据已整理完成');
 }
 
-async function saveVideos() {
-  const json = JSON.stringify({ items: state.videos }, null, 2);
-  const res = await ghPut('data/videos.json', b64Encode(json), '后台更新视频教程', state.videosSha);
-  state.videosSha = res.content.sha;
-}
-
-async function saveArticles() {
-  // 索引只保留轻量字段，正文写到 data/posts/<id>.json
-  const index = state.articles.map(it => ({
-    id: it.id,
-    title: it.title,
-    date: it.date
-  }));
-  const json = JSON.stringify({ items: index }, null, 2);
-  const res = await ghPut('data/articles.json', b64Encode(json), '后台更新图文教程索引', state.articlesSha);
-  state.articlesSha = res.content.sha;
-}
-
-// 写入单篇正文
-async function savePost(item) {
-  const json = JSON.stringify(item, null, 2);
-  await ghPut('data/posts/' + item.id + '.json', b64Encode(json), '发布图文：' + item.title, null);
-}
-
-// 删除单篇正文（不存在则忽略）
-async function deletePost(id) {
-  const path = 'data/posts/' + id + '.json';
-  const f = await ghGet(path);
-  if (!f) return;
-  await ghDelete(path, '删除图文：' + id, f.sha);
+function videosPayload() {
+  return JSON.stringify({ items: state.videos }, null, 2);
 }
 
 // ---------- 渲染已有列表 ----------
@@ -231,18 +267,25 @@ async function handleDelete(kind, item) {
   const list = kind === 'video' ? state.videos : state.articles;
   const idx = list.findIndex(x => x.id === item.id);
   if (idx === -1) return;
-  list.splice(idx, 1);
+
+  const removed = list.splice(idx, 1)[0];
+  const changes = [];
+  if (kind === 'video') {
+    changes.push({ path: 'data/videos.json', content: b64Encode(videosPayload()) });
+  } else {
+    changes.push({ path: 'data/posts/' + item.id + '.json', remove: true });
+    changes.push({ path: 'data/articles.json', content: b64Encode(buildIndexJSON(state.articles)) });
+  }
+
+  const msgEl = kind === 'video' ? $('videoMsg') : $('articleMsg');
   try {
-    if (kind === 'video') {
-      await saveVideos();
-    } else {
-      await deletePost(item.id);
-      await saveArticles();
-    }
+    await commitMany(changes, '删除' + (kind === 'video' ? '视频' : '图文') + '：' + item.title);
     refreshLists();
-    setMsg(kind === 'video' ? $('videoMsg') : $('articleMsg'), '已删除', 'ok');
+    setMsg(msgEl, '已删除', 'ok');
   } catch (e) {
-    setMsg(kind === 'video' ? $('videoMsg') : $('articleMsg'), e.message, 'err');
+    // 提交失败则还原内存状态
+    list.splice(idx, 0, removed);
+    setMsg(msgEl, e.message, 'err');
   }
 }
 
@@ -269,14 +312,18 @@ async function addVideo() {
   const btn = $('addVideoBtn');
   btn.disabled = true;
   setMsg($('videoMsg'), '正在提交到 GitHub…');
+  const item = {
+    id: Date.now(),
+    title: title,
+    date: date,
+    iframe: iframe
+  };
+  state.videos.push(item);
   try {
-    state.videos.push({
-      id: Date.now(),
-      title: title,
-      date: date,
-      iframe: iframe
-    });
-    await saveVideos();
+    await commitMany(
+      [{ path: 'data/videos.json', content: b64Encode(videosPayload()) }],
+      '发布视频教程：' + title
+    );
     $('videoTitle').value = '';
     $('videoIframe').value = '';
     $('videoDate').value = '';
@@ -334,7 +381,6 @@ async function addArticle() {
   setMsg($('articleMsg'), '正在解析 Word…');
 
   let newItem = null;
-  const uploadedPaths = [];
   try {
     const arrayBuffer = await file.arrayBuffer();
     const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
@@ -348,35 +394,43 @@ async function addArticle() {
     const chars = textLength(content);
     const images = extractInlineImages(content);
 
-    // 2. 逐张上传图片，替换正文中的 base64
+    // 2. 收集所有要写入的文件，最后一次性提交
+    const changes = [];
+    const imgPaths = [];
+
     for (let i = 0; i < images.length; i++) {
-      setMsg($('articleMsg'), '正在上传图片 ' + (i + 1) + ' / ' + images.length + '…');
       const imgPath = 'docs/images/' + stamp + '_' + (i + 1) + '.' + images[i].ext;
-      await ghPut(imgPath, images[i].b64, '上传图文图片：' + title, null);
-      uploadedPaths.push(imgPath);
+      changes.push({ path: imgPath, content: images[i].b64 });
+      imgPaths.push(imgPath);
       content = content.split(images[i].full).join(imgPath);
     }
 
-    // 3. 上传 Word 原文件
-    setMsg($('articleMsg'), '正在上传 Word 文件…');
     const docName = 'docs/' + stamp + '_' + safeName(file.name);
-    const binB64 = arrayBufferToBase64(arrayBuffer);
-    await ghPut(docName, binB64, '上传 Word：' + file.name, null);
-    uploadedPaths.push(docName);
+    changes.push({ path: docName, content: arrayBufferToBase64(arrayBuffer) });
 
-    // 4. 保存：正文单独成文件，索引只存标题日期
-    setMsg($('articleMsg'), '正在保存教程…');
     newItem = {
       id: stamp,
       title: title,
       date: date,
       docPath: docName,
-      images: uploadedPaths.filter(p => p.startsWith('docs/images/')),
+      images: imgPaths,
       content: content
     };
-    await savePost(newItem);
+    changes.push({
+      path: 'data/posts/' + stamp + '.json',
+      content: b64Encode(JSON.stringify(newItem, null, 2))
+    });
+
+    // 3. 索引也放进同一次提交
     state.articles.push(newItem);
-    await saveArticles();
+    changes.push({
+      path: 'data/articles.json',
+      content: b64Encode(buildIndexJSON(state.articles))
+    });
+
+    setMsg($('articleMsg'),
+      '正在提交（' + (images.length + 3) + ' 个文件，1 次提交）…');
+    await commitMany(changes, '发布图文：' + title);
 
     $('articleTitle').value = '';
     $('articleFile').value = '';
@@ -384,17 +438,10 @@ async function addArticle() {
     refreshLists();
     setMsg($('articleMsg'), '发布成功：' + chars + ' 字、' + images.length + ' 张图。站点约 1 分钟后生效', 'ok');
   } catch (e) {
+    // 一次提交要么全成，要么全不成，只需回滚内存状态
     if (newItem) {
       const i = state.articles.findIndex(x => x.id === newItem.id);
       if (i > -1) state.articles.splice(i, 1);
-      try { await deletePost(newItem.id); } catch (err) { /* 忽略 */ }
-    }
-    // 回滚已上传的文件，避免仓库里留下孤儿文件
-    for (const p of uploadedPaths) {
-      try {
-        const f = await ghGet(p);
-        if (f) await ghDelete(p, '回滚：发布失败清理文件', f.sha);
-      } catch (err) { /* 清理失败不影响主流程 */ }
     }
     setMsg($('articleMsg'), e.message, 'err');
   } finally {
