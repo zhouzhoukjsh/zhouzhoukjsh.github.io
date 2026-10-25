@@ -112,6 +112,50 @@ async function loadData() {
   const a = await ghGet('data/articles.json');
   state.articlesSha = a ? a.sha : null;
   state.articles = a ? (JSON.parse(b64Decode(a.content)).items || []) : [];
+
+  await migrateLegacy();
+}
+
+// 早期版本把正文（含 base64 图片）直接塞在索引里。
+// 这里把它拆成：图片 → docs/images/，正文 → data/posts/<id>.json，索引只留标题日期。
+async function migrateLegacy() {
+  const legacy = state.articles.filter(it => it.content || it.iframe);
+  if (!legacy.length) return;
+
+  setMsg($('loginMsg'), '正在整理历史数据，共 ' + legacy.length + ' 篇…');
+
+  for (const it of legacy) {
+    const exists = await ghGet('data/posts/' + it.id + '.json');
+    if (exists) continue;
+
+    let content = it.content || '';
+    const images = extractInlineImages(content);
+    const imgPaths = [];
+    for (let i = 0; i < images.length; i++) {
+      const p = 'docs/images/' + it.id + '_' + (i + 1) + '.' + images[i].ext;
+      await ghPut(p, images[i].b64, '整理历史图片：' + it.title, null);
+      imgPaths.push(p);
+      content = content.split(images[i].full).join(p);
+    }
+
+    await savePost({
+      id: it.id,
+      title: it.title,
+      date: it.date,
+      docPath: it.docPath || '',
+      images: imgPaths,
+      content: content
+    });
+
+    // 迁移完把内存里的老字段清掉，避免再次迁移
+    delete it.content;
+    delete it.iframe;
+    delete it.docPath;
+    delete it.images;
+  }
+
+  await saveArticles();
+  setMsg($('loginMsg'), '历史数据已整理完成');
 }
 
 async function saveVideos() {
@@ -121,9 +165,29 @@ async function saveVideos() {
 }
 
 async function saveArticles() {
-  const json = JSON.stringify({ items: state.articles }, null, 2);
-  const res = await ghPut('data/articles.json', b64Encode(json), '后台更新图文教程', state.articlesSha);
+  // 索引只保留轻量字段，正文写到 data/posts/<id>.json
+  const index = state.articles.map(it => ({
+    id: it.id,
+    title: it.title,
+    date: it.date
+  }));
+  const json = JSON.stringify({ items: index }, null, 2);
+  const res = await ghPut('data/articles.json', b64Encode(json), '后台更新图文教程索引', state.articlesSha);
   state.articlesSha = res.content.sha;
+}
+
+// 写入单篇正文
+async function savePost(item) {
+  const json = JSON.stringify(item, null, 2);
+  await ghPut('data/posts/' + item.id + '.json', b64Encode(json), '发布图文：' + item.title, null);
+}
+
+// 删除单篇正文（不存在则忽略）
+async function deletePost(id) {
+  const path = 'data/posts/' + id + '.json';
+  const f = await ghGet(path);
+  if (!f) return;
+  await ghDelete(path, '删除图文：' + id, f.sha);
 }
 
 // ---------- 渲染已有列表 ----------
@@ -169,7 +233,12 @@ async function handleDelete(kind, item) {
   if (idx === -1) return;
   list.splice(idx, 1);
   try {
-    if (kind === 'video') await saveVideos(); else await saveArticles();
+    if (kind === 'video') {
+      await saveVideos();
+    } else {
+      await deletePost(item.id);
+      await saveArticles();
+    }
     refreshLists();
     setMsg(kind === 'video' ? $('videoMsg') : $('articleMsg'), '已删除', 'ok');
   } catch (e) {
@@ -295,7 +364,7 @@ async function addArticle() {
     await ghPut(docName, binB64, '上传 Word：' + file.name, null);
     uploadedPaths.push(docName);
 
-    // 4. 保存数据
+    // 4. 保存：正文单独成文件，索引只存标题日期
     setMsg($('articleMsg'), '正在保存教程…');
     newItem = {
       id: stamp,
@@ -305,6 +374,7 @@ async function addArticle() {
       images: uploadedPaths.filter(p => p.startsWith('docs/images/')),
       content: content
     };
+    await savePost(newItem);
     state.articles.push(newItem);
     await saveArticles();
 
@@ -317,6 +387,7 @@ async function addArticle() {
     if (newItem) {
       const i = state.articles.findIndex(x => x.id === newItem.id);
       if (i > -1) state.articles.splice(i, 1);
+      try { await deletePost(newItem.id); } catch (err) { /* 忽略 */ }
     }
     // 回滚已上传的文件，避免仓库里留下孤儿文件
     for (const p of uploadedPaths) {
