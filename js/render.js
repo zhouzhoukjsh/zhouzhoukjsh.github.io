@@ -99,6 +99,12 @@ function renderDetail(kind) {
       const body = document.createElement('div');
       body.className = 'doc-body';
       body.innerHTML = item.content;
+      // 正文开头的一级标题若与文章标题重复，去掉一个
+      const first = body.firstElementChild;
+      if (first && first.tagName === 'H1' &&
+          first.textContent.trim() === item.title.trim()) {
+        first.remove();
+      }
       box.appendChild(body);
     }
 

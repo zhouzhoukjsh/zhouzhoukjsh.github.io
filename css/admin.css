@@ -141,6 +141,7 @@
   min-height: 20px;
   margin-top: 10px;
   color: var(--color-text-light);
+  white-space: pre-line;
   word-break: break-all;
 }
 

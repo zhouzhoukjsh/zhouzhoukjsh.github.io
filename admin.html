@@ -94,7 +94,10 @@
           <div class="field">
             <label for="articleFile">Word 文档（.docx）</label>
             <input type="file" id="articleFile" accept=".docx">
-            <span class="admin-hint">只支持 .docx。老的 .doc 请先在 Word 里另存为 .docx。</span>
+            <span class="admin-hint">
+              只支持 .docx。老的 .doc 请先在 Word 里另存为 .docx。<br>
+              Word 里插入的图片会自动抽取上传，正文按原文排版显示。没有图片也可以发布。
+            </span>
           </div>
           <div class="field">
             <label for="articleDate">日期（留空用今天）</label>
@@ -117,7 +120,7 @@
     </div>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <script src="js/vendor/mammoth.browser.min.js"></script>
   <script src="js/main.js"></script>
   <script src="js/admin.js"></script>
 </body>

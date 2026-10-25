@@ -226,6 +226,29 @@ function safeName(name) {
   return name.replace(/[^\w\u4e00-\u9fa5.-]/g, '_');
 }
 
+// 从 HTML 中提取 base64 内嵌图片
+function extractInlineImages(html) {
+  const regex = /data:image\/([a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)/g;
+  const found = [];
+  let m;
+  while ((m = regex.exec(html)) !== null) {
+    const ext = m[1].toLowerCase().replace('jpeg', 'jpg');
+    found.push({
+      full: m[0],
+      ext: ext,
+      b64: m[2].replace(/\s/g, '')
+    });
+  }
+  return found;
+}
+
+// 去掉标签后统计正文字数
+function textLength(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent || '').replace(/\s/g, '').length;
+}
+
 async function addArticle() {
   const titleInput = $('articleTitle').value.trim();
   const file = $('articleFile').files[0];
@@ -242,27 +265,44 @@ async function addArticle() {
   setMsg($('articleMsg'), '正在解析 Word…');
 
   let newItem = null;
-  let uploadedPath = '';
+  const uploadedPaths = [];
   try {
     const arrayBuffer = await file.arrayBuffer();
     const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
-    const content = result.value;
+    let content = result.value;
 
     const baseName = file.name.replace(/\.docx$/i, '');
     const title = titleInput || baseName;
-    const docName = 'docs/' + Date.now() + '_' + safeName(file.name);
+    const stamp = Date.now();
 
+    // 1. 统计正文与图片（仅用于提示，不做限制）
+    const chars = textLength(content);
+    const images = extractInlineImages(content);
+
+    // 2. 逐张上传图片，替换正文中的 base64
+    for (let i = 0; i < images.length; i++) {
+      setMsg($('articleMsg'), '正在上传图片 ' + (i + 1) + ' / ' + images.length + '…');
+      const imgPath = 'docs/images/' + stamp + '_' + (i + 1) + '.' + images[i].ext;
+      await ghPut(imgPath, images[i].b64, '上传图文图片：' + title, null);
+      uploadedPaths.push(imgPath);
+      content = content.split(images[i].full).join(imgPath);
+    }
+
+    // 3. 上传 Word 原文件
     setMsg($('articleMsg'), '正在上传 Word 文件…');
+    const docName = 'docs/' + stamp + '_' + safeName(file.name);
     const binB64 = arrayBufferToBase64(arrayBuffer);
     await ghPut(docName, binB64, '上传 Word：' + file.name, null);
-    uploadedPath = docName;
+    uploadedPaths.push(docName);
 
+    // 4. 保存数据
     setMsg($('articleMsg'), '正在保存教程…');
     newItem = {
-      id: Date.now(),
+      id: stamp,
       title: title,
       date: date,
       docPath: docName,
+      images: uploadedPaths.filter(p => p.startsWith('docs/images/')),
       content: content
     };
     state.articles.push(newItem);
@@ -272,11 +312,18 @@ async function addArticle() {
     $('articleFile').value = '';
     $('articleDate').value = '';
     refreshLists();
-    setMsg($('articleMsg'), '发布成功，站点约 1 分钟后生效', 'ok');
+    setMsg($('articleMsg'), '发布成功：' + chars + ' 字、' + images.length + ' 张图。站点约 1 分钟后生效', 'ok');
   } catch (e) {
     if (newItem) {
       const i = state.articles.findIndex(x => x.id === newItem.id);
       if (i > -1) state.articles.splice(i, 1);
+    }
+    // 回滚已上传的文件，避免仓库里留下孤儿文件
+    for (const p of uploadedPaths) {
+      try {
+        const f = await ghGet(p);
+        if (f) await ghDelete(p, '回滚：发布失败清理文件', f.sha);
+      } catch (err) { /* 清理失败不影响主流程 */ }
     }
     setMsg($('articleMsg'), e.message, 'err');
   } finally {
