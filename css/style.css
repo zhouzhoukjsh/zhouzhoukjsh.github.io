@@ -312,6 +312,25 @@ a.post-title:hover {
   border: none;
 }
 
+/* 视频简介 */
+.detail-desc {
+  max-width: 720px;
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: #555;
+  white-space: pre-line;
+}
+
+.detail-desc a {
+  color: var(--color-primary);
+  word-break: break-all;
+}
+
+.detail-desc a:hover {
+  text-decoration: underline;
+}
+
 /* Word 正文 */
 .doc-body {
   font-size: 15px;

@@ -76,6 +76,32 @@ function fillList(ul, items, hrefOf) {
 
 const idOf = name => new URLSearchParams(location.search).get(name);
 
+// 转义 HTML，避免简介里的特殊字符破坏页面
+function escapeHTML(s) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// 把文字里的网址变成可点击链接，其余原样保留
+function linkify(text) {
+  const CJK = '，。；：！？、（）【】「」『』《》“”‘’…';
+  const re = new RegExp('(?:https?:\\/\\/|www\\.)[^\\s<>"\'' + CJK + ']+', 'g');
+  return escapeHTML(text).replace(re, m => {
+    let tail = '';
+    const t = m.match(/[.,;:!?)]+$/);
+    if (t) {
+      tail = t[0];
+      m = m.slice(0, -tail.length);
+    }
+    if (!m) return tail;
+    const href = m.indexOf('www.') === 0 ? 'http://' + m : m;
+    return '<a href="' + href + '" target="_blank" rel="noopener noreferrer">' + m + '</a>' + tail;
+  });
+}
+
 // 取单篇内容：优先读独立详情文件，老数据回退到索引里的内嵌正文
 async function loadPost(kind, id) {
   if (kind === 'videos') {
@@ -124,6 +150,13 @@ async function renderDetail(kind) {
     wrap.className = 'video-wrap';
     wrap.innerHTML = item.iframe;
     box.appendChild(wrap);
+  }
+
+  if (item.desc) {
+    const p = document.createElement('p');
+    p.className = 'detail-desc';
+    p.innerHTML = linkify(item.desc);
+    box.appendChild(p);
   }
 
   if (item.content) {

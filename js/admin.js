@@ -303,6 +303,7 @@ function extractIframe(html) {
 async function addVideo() {
   const title = $('videoTitle').value.trim();
   const rawIframe = $('videoIframe').value.trim();
+  const desc = $('videoDesc').value.trim();
   const date = $('videoDate').value || today();
 
   if (!title) { setMsg($('videoMsg'), '请填写标题', 'err'); return; }
@@ -316,7 +317,8 @@ async function addVideo() {
     id: Date.now(),
     title: title,
     date: date,
-    iframe: iframe
+    iframe: iframe,
+    desc: desc
   };
   state.videos.push(item);
   try {
@@ -326,6 +328,7 @@ async function addVideo() {
     );
     $('videoTitle').value = '';
     $('videoIframe').value = '';
+    $('videoDesc').value = '';
     $('videoDate').value = '';
     refreshLists();
     setMsg($('videoMsg'), '发布成功，站点约 1 分钟后生效', 'ok');
