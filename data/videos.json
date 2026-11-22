@@ -1,3 +1,11 @@
 {
-  "items": []
+  "items": [
+    {
+      "id": 1795332994959,
+      "title": "如何使用ollama本地部署DeepSeek",
+      "date": "2025-02-15",
+      "iframe": "<iframe src=\"//player.bilibili.com/player.html?isOutside=true&aid=113978349064000&bvid=BV1ZSNRedEbJ&cid=28311160250&p=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\"></iframe>",
+      "desc": "ollama网站：ollama.com\nchatbox网站：chatboxai.app/zh"
+    }
+  ]
 }
